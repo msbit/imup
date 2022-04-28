@@ -12,6 +12,8 @@ use std::result;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 
+use imap::types;
+
 #[derive(Debug)]
 enum ApplicationError {
     NotEnoughArguments,
@@ -41,6 +43,12 @@ fn main() -> result::Result<(), Box<dyn error::Error>> {
         let name = item.name();
         print!("{}:", name);
         io::stdout().flush()?;
+
+        if item.attributes().contains(&types::NameAttribute::NoSelect) {
+            println!(" NoSelect");
+            continue;
+        }
+
         fs::create_dir_all(format!("output/{}", name))?;
         session.select(name)?;
         let messages = session.search("ALL")?;
