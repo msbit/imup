@@ -6,13 +6,15 @@ use std::env;
 use std::error;
 use std::fmt;
 use std::fs;
-use std::io::{self, Write};
+use std::io::Write;
 use std::result;
 
 use flate2::write::GzEncoder;
 use flate2::Compression;
 
 use imap::types;
+
+use indicatif::ProgressBar;
 
 #[derive(Debug)]
 enum ApplicationError {
@@ -41,20 +43,16 @@ fn main() -> result::Result<(), Box<dyn error::Error>> {
 
     for item in session.list(Some("/"), Some("*"))?.iter() {
         let name = item.name();
-        print!("{}:", name);
-        io::stdout().flush()?;
-
         if item.attributes().contains(&types::NameAttribute::NoSelect) {
-            println!(" NoSelect");
             continue;
         }
 
+        println!("{}", name);
         fs::create_dir_all(format!("output/{}", name))?;
         session.select(name)?;
         let messages = session.search("ALL")?;
+        let bar = ProgressBar::new(messages.len().try_into().unwrap());
         for seq in messages.iter() {
-            print!(" {}", seq);
-            io::stdout().flush()?;
             let fetch = session.fetch(seq.to_string(), "BODY.PEEK[]")?;
             for f in fetch.iter() {
                 if let Some(body) = f.body() {
@@ -64,8 +62,8 @@ fn main() -> result::Result<(), Box<dyn error::Error>> {
                     fs::write(format!("output/{}/{}.gz", name, seq), compressed_bytes)?;
                 }
             }
+            bar.inc(1);
         }
-        println!("");
     }
 
     Ok(())
