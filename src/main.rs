@@ -1,3 +1,4 @@
+extern crate flate2;
 extern crate imap;
 extern crate native_tls;
 
@@ -7,6 +8,9 @@ use std::fmt;
 use std::fs;
 use std::io::{self, Write};
 use std::result;
+
+use flate2::write::GzEncoder;
+use flate2::Compression;
 
 #[derive(Debug)]
 enum ApplicationError {
@@ -46,7 +50,10 @@ fn main() -> result::Result<(), Box<dyn error::Error>> {
             let fetch = session.fetch(seq.to_string(), "BODY.PEEK[]")?;
             for f in fetch.iter() {
                 if let Some(body) = f.body() {
-                    fs::write(format!("output/{}/{}", name, seq), body)?;
+                    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+                    encoder.write_all(body)?;
+                    let compressed_bytes = encoder.finish()?;
+                    fs::write(format!("output/{}/{}.gz", name, seq), compressed_bytes)?;
                 }
             }
         }
