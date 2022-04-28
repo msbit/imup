@@ -136,6 +136,7 @@ name = "imup"
 version = "0.1.0"
 dependencies = [
  "imap",
+ "native-tls",
 ]
 
 [[package]]
