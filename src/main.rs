@@ -8,6 +8,7 @@ use std::fmt;
 use std::fs;
 use std::io::Write;
 use std::result;
+use std::str;
 
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -19,6 +20,9 @@ use indicatif::ProgressBar;
 #[derive(Debug)]
 enum ApplicationError {
     NotEnoughArguments,
+    MissingEnvelope,
+    MissingBody,
+    MissingMessageId,
 }
 
 impl error::Error for ApplicationError {}
@@ -51,18 +55,25 @@ fn main() -> result::Result<(), Box<dyn error::Error>> {
         fs::create_dir_all(format!("output/{}", name))?;
         session.select(name)?;
         let messages = session.search("ALL")?;
-        let bar = ProgressBar::new(messages.len().try_into().unwrap());
+        let progress = ProgressBar::new(messages.len().try_into().unwrap());
         for seq in messages.iter() {
-            let fetch = session.fetch(seq.to_string(), "BODY.PEEK[]")?;
+            let fetch = session.fetch(seq.to_string(), "(BODY.PEEK[] ENVELOPE)")?;
             for f in fetch.iter() {
-                if let Some(body) = f.body() {
-                    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
-                    encoder.write_all(body)?;
-                    let compressed_bytes = encoder.finish()?;
-                    fs::write(format!("output/{}/{}.gz", name, seq), compressed_bytes)?;
-                }
+                let envelope = f.envelope().ok_or(ApplicationError::MissingEnvelope)?;
+                let body = f.body().ok_or(ApplicationError::MissingBody)?;
+                let message_id = envelope
+                    .message_id
+                    .ok_or(ApplicationError::MissingMessageId)?;
+
+                let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+                encoder.write_all(body)?;
+                let compressed_bytes = encoder.finish()?;
+                fs::write(
+                    format!("output/{}/{}.gz", name, str::from_utf8(message_id)?),
+                    compressed_bytes,
+                )?;
             }
-            bar.inc(1);
+            progress.inc(1);
         }
     }
 
