@@ -68,10 +68,8 @@ fn main() -> result::Result<(), Box<dyn error::Error>> {
                 let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
                 encoder.write_all(body)?;
                 let compressed_bytes = encoder.finish()?;
-                fs::write(
-                    format!("output/{}/{}.gz", name, str::from_utf8(message_id)?),
-                    compressed_bytes,
-                )?;
+                let filebase = str::replace(str::from_utf8(message_id)?, "/", "_");
+                fs::write(format!("output/{}/{}.gz", name, filebase), compressed_bytes)?;
             }
             progress.inc(1);
         }
