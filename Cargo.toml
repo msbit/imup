@@ -10,3 +10,8 @@ flate2 = "1.0.23"
 imap = "2.4.1"
 indicatif = "0.16.2"
 native-tls = "0.2.10"
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true
