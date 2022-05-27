@@ -46,11 +46,11 @@ fn main() -> result::Result<(), Box<dyn error::Error>> {
     let mut session = client.login(username, password).map_err(|e| e.0)?;
 
     for item in session.list(Some("/"), Some("*"))?.iter() {
-        let name = item.name();
         if item.attributes().contains(&types::NameAttribute::NoSelect) {
             continue;
         }
 
+        let name = item.name();
         println!("{}", name);
         fs::create_dir_all(format!("output/{}", name))?;
         session.select(name)?;
