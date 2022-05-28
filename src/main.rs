@@ -37,12 +37,13 @@ impl fmt::Display for ApplicationError {
 
 fn main() -> result::Result<(), Box<dyn error::Error>> {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 3 {
+    if args.len() != 4 {
         return Err(Box::new(ApplicationError::NotEnoughArguments));
     }
 
     let username = &args[1];
     let password = &args[2];
+    let output = &args[3];
     let tls = native_tls::TlsConnector::builder().build()?;
     let client = imap::connect(("imap.gmail.com", 993), "imap.gmail.com", &tls)?;
     let mut session = client.login(username, password).map_err(|e| e.0)?;
@@ -55,7 +56,7 @@ fn main() -> result::Result<(), Box<dyn error::Error>> {
 
         let name = item.name();
         println!("{}", name);
-        fs::create_dir_all(format!("output/{}", name))?;
+        fs::create_dir_all(format!("{}/{}", output, name))?;
         session.select(name)?;
         let messages = session.search("ALL")?;
         let progress = ProgressBar::new(messages.len().try_into().unwrap());
@@ -68,7 +69,7 @@ fn main() -> result::Result<(), Box<dyn error::Error>> {
                         .ok_or(ApplicationError::MissingMessageId)?
                         .to_vec(),
                 )?;
-                let filename = format!("output/{}/{}.gz", name, str::replace(&msg_id, "/", "_"));
+                let filename = format!("{}/{}/{}.gz", output, name, str::replace(&msg_id, "/", "_"));
                 if Path::new(&filename).exists() {
                     continue;
                 }
